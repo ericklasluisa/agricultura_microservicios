@@ -1,0 +1,123 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgresql-config
+  namespace: agricultura
+data:
+  POSTGRES_DB: postgres
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: admin
+  PGDATA: /var/lib/postgresql/data/pgdata
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-script
+  namespace: agricultura
+data:
+  init-postgres.sh: |
+    #!/bin/bash
+    set -e
+
+    # Crear las bases de datos necesarias
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+        CREATE DATABASE inventario_db;
+        CREATE DATABASE facturacion_db;
+        GRANT ALL PRIVILEGES ON DATABASE inventario_db TO postgres;
+        GRANT ALL PRIVILEGES ON DATABASE facturacion_db TO postgres;
+    EOSQL
+
+    echo "Bases de datos creadas: inventario_db, facturacion_db"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgresql
+  namespace: agricultura
+  labels:
+    app: postgresql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgresql
+  template:
+    metadata:
+      labels:
+        app: postgresql
+    spec:
+      containers:
+        - name: postgresql
+          image: postgres:14
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: postgresql-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: postgresql-config
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                configMapKeyRef:
+                  name: postgresql-config
+                  key: POSTGRES_PASSWORD
+            - name: PGDATA
+              valueFrom:
+                configMapKeyRef:
+                  name: postgresql-config
+                  key: PGDATA
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+            - name: postgres-init-script
+              mountPath: /docker-entrypoint-initdb.d/init-postgres.sh
+              subPath: init-postgres.sh
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+            initialDelaySeconds: 60
+            periodSeconds: 30
+      volumes:
+        - name: postgres-storage
+          emptyDir: {}
+        - name: postgres-init-script
+          configMap:
+            name: postgres-init-script
+            defaultMode: 0755
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql-service
+  namespace: agricultura
+spec:
+  selector:
+    app: postgresql
+  ports:
+    - port: 5432
+      targetPort: 5432
+  type: ClusterIP

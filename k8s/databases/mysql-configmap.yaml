@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-config
+  namespace: agricultura
+data:
+  MYSQL_DATABASE: central_db
+  MYSQL_USER: admin
+  MYSQL_ROOT_PASSWORD: rootpassword
+  MYSQL_PASSWORD: admin

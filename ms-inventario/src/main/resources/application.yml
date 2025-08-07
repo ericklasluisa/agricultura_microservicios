@@ -1,12 +1,12 @@
 server:
-  port: 0
+  port: 8082
 spring:
   application:
     name: SERVICIO-INVENTARIO
   datasource:
-    url: jdbc:postgresql://localhost:5432/inventario_db
-    username: postgres
-    password: posgresDB
+    url: jdbc:postgresql://${POSTGRES_HOST:postgresql-service}:${POSTGRES_PORT:5432}/${POSTGRES_DATABASE:inventario_db}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:admin}
 
   jpa:
     hibernate:
@@ -19,7 +19,17 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
   rabbitmq:
-    host: localhost
-    port: 5672
-    username: admin
-    password: admin
+    host: ${RABBITMQ_HOST:rabbitmq-service}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:admin}
+    password: ${RABBITMQ_PASSWORD:admin}
+
+# Management endpoints para health checks
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always

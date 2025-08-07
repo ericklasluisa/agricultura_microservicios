@@ -3,7 +3,6 @@ package ec.edu.espe.ms_central.service;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.UUID;
 
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,7 +32,7 @@ public class CosechaProducer {
       // Crear el mensaje con la estructura requerida
       MensajeColaDto mensaje = new MensajeColaDto();
       mensaje.setEvento("nueva_cosecha");
-      mensaje.setCosecha_id(UUID.randomUUID().toString());
+      mensaje.setCosecha_id(cosecha.getCosecha_id().toString()); // CORRIGIDO: usar el ID real de la cosecha
       mensaje.setProducto(cosecha.getProducto());
       mensaje.setToneladas(cosecha.getToneladas());
       mensaje.setTimestamp(LocalDateTime.now());

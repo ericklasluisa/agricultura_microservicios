@@ -1,0 +1,55 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: agricultura-ingress
+  namespace: agricultura
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: conjunta.local
+      http:
+        paths:
+          # Microservicio Central
+          - path: /central(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: ms-central-service
+                port:
+                  number: 8081
+          # Microservicio Facturación
+          - path: /facturacion(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: ms-facturacion-service
+                port:
+                  number: 8083
+          # Microservicio Inventario
+          - path: /inventario(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: ms-inventario-service
+                port:
+                  number: 8082
+          # RabbitMQ Management UI
+          - path: /rabbitmq(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: rabbitmq-service
+                port:
+                  number: 15672
+          # Default path - redirige al central
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ms-central-service
+                port:
+                  number: 8081

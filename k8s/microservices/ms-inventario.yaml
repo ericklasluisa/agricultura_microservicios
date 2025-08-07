@@ -1,0 +1,115 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ms-inventario-config
+  namespace: agricultura
+data:
+  application.yml: |
+    server:
+      port: 8082
+
+    spring:
+      application:
+        name: SERVICIO-INVENTARIO
+      datasource:
+        url: jdbc:postgresql://postgres-inventario-service:5432/inventario_db
+        username: postgres
+        password: posgresDB
+        driver-class-name: org.postgresql.Driver
+      jpa:
+        hibernate:
+          ddl-auto: update
+        properties:
+          hibernate:
+            show_sql: true
+            format_sql: true
+            use_sql_comments: true
+            dialect: org.hibernate.dialect.PostgreSQLDialect
+      rabbitmq:
+        host: rabbitmq-service
+        port: 5672
+        username: admin
+        password: admin
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-inventario
+  namespace: agricultura
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-inventario
+  template:
+    metadata:
+      labels:
+        app: ms-inventario
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.35
+          command:
+            [
+              "sh",
+              "-c",
+              "until nc -z postgres-inventario-service 5432; do echo waiting for postgres; sleep 2; done;",
+            ]
+        - name: wait-for-rabbitmq
+          image: busybox:1.35
+          command:
+            [
+              "sh",
+              "-c",
+              "until nc -z rabbitmq-service 5672; do echo waiting for rabbitmq; sleep 2; done;",
+            ]
+      containers:
+        - name: ms-inventario
+          image: ms-inventario:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8082
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "k8s"
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app/config
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8082
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8082
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            failureThreshold: 3
+      volumes:
+        - name: config-volume
+          configMap:
+            name: ms-inventario-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ms-inventario-service
+  namespace: agricultura
+spec:
+  selector:
+    app: ms-inventario
+  ports:
+    - port: 8082
+      targetPort: 8082
+  type: ClusterIP

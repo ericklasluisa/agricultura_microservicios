@@ -26,18 +26,18 @@ public class FacturaEventListener {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @RabbitListener(queues = "${cola.facturacion}")
+    @RabbitListener(queues = "cola_facturacion")
     public void escucharEventoNuevaCosecha(EventoNuevaCosechaDto evento) {
-        if (!"nueva_cosecha".equalsIgnoreCase(evento.getEventType())) return;
+        if (!"nueva_cosecha".equalsIgnoreCase(evento.getEventType()))
+            return;
 
         var payload = evento.getPayload();
 
         try {
             FacturaDto factura = facturaService.generarFactura(
-                    payload.getCosechaId(),       // camelCase
+                    payload.getCosechaId(), // camelCase
                     payload.getProducto(),
-                    payload.getToneladas()
-            );
+                    payload.getToneladas());
 
             // URL a la que se va a hacer PUT
             String url = centralServiceUrl + "/api/cosechas/" + payload.getCosechaId() + "/estado";
@@ -45,7 +45,7 @@ public class FacturaEventListener {
             // Cuerpo de la solicitud
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("estado", "FACTURADA");
-            requestBody.put("facturaId", factura.getFacturaId());  // camelCase aquí también
+            requestBody.put("facturaId", factura.getFacturaId()); // camelCase aquí también
 
             String jsonRequest = objectMapper.writeValueAsString(requestBody);
 

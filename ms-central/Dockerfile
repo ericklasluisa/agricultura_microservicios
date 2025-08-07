@@ -22,13 +22,13 @@ FROM eclipse-temurin:17-jdk-alpine
 WORKDIR /app
 
 # Copiar el JAR generado desde la etapa anterior
-COPY --from=build /app/target/ms-facturacion-0.0.1-SNAPSHOT.jar app.jar
+COPY --from=build /app/target/ms-central-0.0.1-SNAPSHOT.jar app.jar
 
 # Crear directorio para configuraciones
 RUN mkdir -p /app/config
 
-# Exponer el puerto en el que tu app escucha (ajusta si cambias el server.port)
-EXPOSE 8083
+# Exponer el puerto en el que tu app escucha
+EXPOSE 8081
 
 # Variables de entorno por defecto
 ENV JAVA_OPTS="-Xmx512m -Xms256m"

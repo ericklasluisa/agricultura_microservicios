@@ -1,0 +1,125 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ms-central-config
+  namespace: agricultura
+data:
+  application.yml: |
+    spring:
+      application:
+        name: SERVICIO-NOTIFICACIONES
+      datasource:
+        url: jdbc:mysql://mysql-service:3306/central_db
+        username: admin
+        password: admin
+        driver-class-name: com.mysql.cj.jdbc.Driver
+      jpa:
+        hibernate:
+          ddl-auto: update
+        properties:
+          hibernate:
+            show_sql: true
+            format.sql: true
+            use_sql_comments: true
+            dialect: org.hibernate.dialect.MySQLDialect
+      rabbitmq:
+        host: rabbitmq-service
+        port: 5672
+        username: admin
+        password: admin
+    server:
+      port: 8081
+
+    eureka:
+      client:
+        enabled: false
+
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: "*"
+      endpoint:
+        health:
+          show-details: always
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-central
+  namespace: agricultura
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-central
+  template:
+    metadata:
+      labels:
+        app: ms-central
+    spec:
+      initContainers:
+        - name: wait-for-mysql
+          image: busybox:1.35
+          command:
+            [
+              "sh",
+              "-c",
+              "until nc -z mysql-service 3306; do echo waiting for mysql; sleep 2; done;",
+            ]
+        - name: wait-for-rabbitmq
+          image: busybox:1.35
+          command:
+            [
+              "sh",
+              "-c",
+              "until nc -z rabbitmq-service 5672; do echo waiting for rabbitmq; sleep 2; done;",
+            ]
+      containers:
+        - name: ms-central
+          image: ms-central:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8081
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "k8s"
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app/config
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 90
+            periodSeconds: 30
+      volumes:
+        - name: config-volume
+          configMap:
+            name: ms-central-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ms-central-service
+  namespace: agricultura
+spec:
+  selector:
+    app: ms-central
+  ports:
+    - port: 8081
+      targetPort: 8081
+  type: ClusterIP

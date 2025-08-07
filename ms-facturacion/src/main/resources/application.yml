@@ -6,9 +6,9 @@ spring:
     name: facturacion-service
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/facturacion_db
-    username: postgres
-    password: admin
+    url: jdbc:postgresql://${POSTGRES_HOST:postgresql-service}:${POSTGRES_PORT:5432}/${POSTGRES_DATABASE:facturacion_db}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:admin}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -21,7 +21,26 @@ spring:
         format_sql: true
 
   rabbitmq:
-    host: localhost
-    port: 5672
-    username: admin
-    password: admin
+    host: ${RABBITMQ_HOST:rabbitmq-service}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:admin}
+    password: ${RABBITMQ_PASSWORD:admin}
+
+# Configuración de colas
+cola:
+  facturacion: cola_facturacion
+
+# URL del servicio central
+central:
+  service:
+    url: http://ms-central-service:8081
+
+# Management endpoints para health checks
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
